@@ -1374,209 +1374,207 @@ public static class ResourceRedirection
 
 ```
 
-Let's attach some comments to this API.
+让我们为这个API添加一些注释。
 
-### Asset Loading/Loaded Methods
-The resource redirector comes with both postfix and prefix callbacks when loading an asset from the `AssetBundle` API.
+### 资源加载/已加载方法
+资源重定向器在从`AssetBundle` API加载资源时提供后缀和前缀回调。
 
-The event callback chain looks like this `[AssetLoading / AsyncAssetLoading hooks] => [Original Method] => [AssetLoaded hooks]`. The `AssetLoaded` event handles postfixes for both synchronous and asynchronous loading of assets.
+事件回调链看起来像这样：`[AssetLoading / AsyncAssetLoading钩子] => [原始方法] => [AssetLoaded钩子]`。`AssetLoaded`事件处理同步和异步加载资源的后缀。
 
-#### Asset Loading Methods
-The methods `RegisterAssetLoadingHook( HookBehaviour behaviour, Action<AssetLoadingContext> action )` and `RegisterAsyncAssetLoadingHook( int priority, Action<AsyncAssetLoadingContext> action )` hooks into the `AssetBundle` API when loading assets.
+#### 资源加载方法
+方法`RegisterAssetLoadingHook( HookBehaviour behaviour, Action<AssetLoadingContext> action )`和`RegisterAsyncAssetLoadingHook( int priority, Action<AsyncAssetLoadingContext> action )`在加载资源时钩入`AssetBundle` API。
 
-These methods registers prefix callbacks, which means the assets themselves wont be loaded yet when they are called.
+这些方法注册前缀回调，这意味着在调用它们时资源本身尚未加载。
 
-The callbacks take the types `AssetLoadingContext` and `AsyncAssetLoadingContext` as an argument, respectively. Let's take a look at their definitions:
+回调分别以`AssetLoadingContext`和`AsyncAssetLoadingContext`类型作为参数。让我们看看它们的定义：
 
 ```C#
 /// <summary>
-/// The operation context surrounding the AssetLoading hook (synchronous).
+/// 围绕AssetLoading钩子的操作上下文（同步）。
 /// </summary>
 public class AssetLoadingContext : IAssetLoadingContext
 {
     /// <summary>
-    /// Gets the original path the asset bundle was loaded with.
+    /// 获取加载资源包时使用的原始路径。
     /// </summary>
-    /// <returns>The unmodified, original path the asset bundle was loaded with.</returns>
+    /// <returns>加载资源包时使用的未修改的原始路径。</returns>
     public string GetAssetBundlePath();
 
     /// <summary>
-    /// Gets the normalized path to the asset bundle that is:
-    ///  * Relative to the current directory
-    ///  * Lower-casing
-    ///  * Uses '\' as separators.
+    /// 获取资源包的规范化路径，该路径：
+    ///  * 相对于当前目录
+    ///  * 小写
+    ///  * 使用'\'作为分隔符。
     /// </summary>
     /// <returns></returns>
     public string GetNormalizedAssetBundlePath();
 
     /// <summary>
-    /// Indicate your work is done and if any other hooks to this asset/resource load should be called.
+    /// 指示您的工作已完成，以及是否应该调用对此资源/资源加载的任何其他钩子。
     /// </summary>
-    /// <param name="skipRemainingPrefixes">Indicate if the remaining prefixes should be skipped.</param>
-    /// <param name="skipOriginalCall">Indicate if the original call should be skipped. If you set the asset, you likely want to set this to true.</param>
-    /// <param name="skipAllPostfixes">Indicate if the postfixes should be skipped.</param>
+    /// <param name="skipRemainingPrefixes">指示是否应该跳过剩余的前缀。</param>
+    /// <param name="skipOriginalCall">指示是否应该跳过原始调用。如果您设置了资源，您可能希望将其设置为true。</param>
+    /// <param name="skipAllPostfixes">指示是否应该跳过后缀。</param>
     public void Complete( bool skipRemainingPrefixes = true, bool? skipOriginalCall = true, bool? skipAllPostfixes = true );
 
     /// <summary>
-    /// Disables recursive calls if you make an asset/asset bundle load call
-    /// from within your callback. If you want to prevent recursion this should
-    /// be called before you load the asset/asset bundle.
+    /// 如果您在回调中进行资源/资源包加载调用，则禁用递归调用。
+    /// 如果您想防止递归，应该在加载资源/资源包之前调用此方法。
     /// </summary>
     public void DisableRecursion();
 
     /// <summary>
-    /// Gets the original parameters the asset load call was called with.
+    /// 获取调用资源加载调用时使用的原始参数。
     /// </summary>
     public AssetLoadingParameters Parameters { get; }
 
     /// <summary>
-    /// Gets the AssetBundle associated with the loaded assets.
+    /// 获取与加载资源关联的AssetBundle。
     /// </summary>
     public AssetBundle Bundle { get; }
 
     /// <summary>
-    /// Gets or sets the loaded assets.
+    /// 获取或设置加载的资源。
     ///
-    /// Consider using this if the load type is 'LoadByType' or 'LoadNamedWithSubAssets'.
+    /// 如果加载类型是'LoadByType'或'LoadNamedWithSubAssets'，请考虑使用此属性。
     /// </summary>
     public UnityEngine.Object[] Assets { get; set; }
 
     /// <summary>
-    /// Gets or sets the loaded assets. This is simply equal to the first index of the Assets property, with some
-    /// additional null guards to prevent NullReferenceExceptions when using it.
+    /// 获取或设置加载的资源。这简单地等于Assets属性的第一个索引，并有一些
+    /// 额外的null保护以防止在使用时出现NullReferenceExceptions。
     /// </summary>
     public UnityEngine.Object Asset { get; set; }
 }
 
 /// <summary>
-/// The operation context surrounding the AsyncAssetLoading hook (asynchronous).
+/// 围绕AsyncAssetLoading钩子的操作上下文（异步）。
 /// </summary>
 public class AsyncAssetLoadingContext : IAssetLoadingContext
 {
     /// <summary>
-    /// Gets the original path the asset bundle was loaded with.
+    /// 获取加载资源包时使用的原始路径。
     /// </summary>
-    /// <returns>The unmodified, original path the asset bundle was loaded with.</returns>
+    /// <returns>加载资源包时使用的未修改的原始路径。</returns>
     public string GetAssetBundlePath();
 
     /// <summary>
-    /// Gets the normalized path to the asset bundle that is:
-    ///  * Relative to the current directory
-    ///  * Lower-casing
-    ///  * Uses '\' as separators.
+    /// 获取资源包的规范化路径，该路径：
+    ///  * 相对于当前目录
+    ///  * 小写
+    ///  * 使用'\'作为分隔符。
     /// </summary>
     /// <returns></returns>
     public string GetNormalizedAssetBundlePath();
 
     /// <summary>
-    /// Indicate your work is done and if any other hooks to this asset/resource load should be called.
+    /// 指示您的工作已完成，以及是否应该调用对此资源/资源加载的任何其他钩子。
     /// </summary>
-    /// <param name="skipRemainingPrefixes">Indicate if the remaining prefixes should be skipped.</param>
-    /// <param name="skipOriginalCall">Indicate if the original call should be skipped. If you set the asset, you likely want to set this to true.</param>
-    /// <param name="skipAllPostfixes">Indicate if the postfixes should be skipped.</param>
+    /// <param name="skipRemainingPrefixes">指示是否应该跳过剩余的前缀。</param>
+    /// <param name="skipOriginalCall">指示是否应该跳过原始调用。如果您设置了资源，您可能希望将其设置为true。</param>
+    /// <param name="skipAllPostfixes">指示是否应该跳过后缀。</param>
     public void Complete( bool skipRemainingPrefixes = true, bool? skipOriginalCall = true, bool? skipAllPostfixes = true );
 
     /// <summary>
-    /// Disables recursive calls if you make an asset/asset bundle load call
-    /// from within your callback. If you want to prevent recursion this should
-    /// be called before you load the asset/asset bundle.
+    /// 如果您在回调中进行资源/资源包加载调用，则禁用递归调用。
+    /// 如果您想防止递归，应该在加载资源/资源包之前调用此方法。
     /// </summary>
     public void DisableRecursion();
 
     /// <summary>
-    /// Gets the original parameters the asset load call was called with.
+    /// 获取调用资源加载调用时使用的原始参数。
     /// </summary>
     public AssetLoadingParameters Parameters { get; }
 
     /// <summary>
-    /// Gets the AssetBundle associated with the loaded assets.
+    /// 获取与加载资源关联的AssetBundle。
     /// </summary>
     public AssetBundle Bundle { get; }
 
     /// <summary>
-    /// Gets or sets the AssetBundleRequest used to load assets.
+    /// 获取或设置用于加载资源的AssetBundleRequest。
     /// </summary>
     public AssetBundleRequest Request { get; set; }
 
     /// <summary>
-    /// Gets or sets the loaded assets.
+    /// 获取或设置加载的资源。
     ///
-    /// Consider using this if the load type is 'LoadByType' or 'LoadNamedWithSubAssets'.
+    /// 如果加载类型是'LoadByType'或'LoadNamedWithSubAssets'，请考虑使用此属性。
     /// </summary>
     UnityEngine.Object[] Assets { get; set; }
 
     /// <summary>
-    /// Gets or sets the loaded assets. This is simply equal to the first index of the Assets property, with some
-    /// additional null guards to prevent NullReferenceExceptions when using it.
+    /// 获取或设置加载的资源。这简单地等于Assets属性的第一个索引，并有一些
+    /// 额外的null保护以防止在使用时出现NullReferenceExceptions。
     /// </summary>
     UnityEngine.Object Asset { get; set; }
 
     /// <summary>
-    /// Gets or sets how this load operation should be resolved.
-    /// Setting the Asset/Assets/Request property will automatically update this value.
+    /// 获取或设置此加载操作应如何解析。
+    /// 设置Asset/Assets/Request属性将自动更新此值。
     /// </summary>
     public AsyncAssetLoadingResolve ResolveType { get; set; }
 }
 ```
 
-The only difference between these two contexts is that one has an `Asset/Assets` property you can set, while the other has a `Request` property you can set.
+这两个上下文之间的唯一区别是，一个有您可以设置的`Asset/Assets`属性，而另一个有您可以设置的`Request`属性。
 
-Now if you actually paid attention to what you were reading(!?), you would notice that both of the above context objects has an `Asset/Assets` property that can be set.
+现在，如果您真的注意到了您正在阅读的内容（！？），您会注意到上述两个上下文对象都有一个可以设置的`Asset/Assets`属性。
 
-Under normal circumstances, however, you cannot use the `Assets/Asset` property on the the `AsyncAssetLoadingContext`. In order to be able to use these, you must first call `ResourceRedirection.EnableSyncOverAsyncAssetLoads` once during your initialization logic. This will allow you to set the asset directly so you don't have to go through the standard `AssetBundle` API to obtain a request object.
+但是，在正常情况下，您不能在`AsyncAssetLoadingContext`上使用`Assets/Asset`属性。为了能够使用这些属性，您必须首先在初始化逻辑中调用一次`ResourceRedirection.EnableSyncOverAsyncAssetLoads`。这将允许您直接设置资源，因此您不必通过标准的`AssetBundle` API来获取请求对象。
 
-It is, however, recommended that if you can that you set the `Request` property instead of the `Assets/Asset` property as that will keep the operation asynchronous and not block the game while the asset is being loaded.
+但是，建议如果可以的话，您应该设置`Request`属性而不是`Assets/Asset`属性，因为这将保持操作异步，并且在加载资源时不会阻塞游戏。
 
-If you can handle the loading of the asset remember to call the `Complete` method to indicate your intentions regarding:
- * Whether the rest of the prefixes registered should be skipped.
- * Whether the original method should be skipped.
- * Whether all the postfixes should be skipped.
+如果您可以处理资源的加载，请记住调用`Complete`方法来指示您的意图：
+ * 是否应该跳过其余已注册的前缀。
+ * 是否应该跳过原始方法。
+ * 是否应该跳过所有后缀。
 
-An important points to make here, is that there is both an `Asset` and an `Assets` property on the context object. These can be used interchangably, but an array will only ever be used if the following condition apply:
- * The `LoadType` in the `Parameters` property is `LoadByType` or `LoadNamedWithSubAssets`, which are the only types of resource loading that may return multiple resources.
+这里需要注意的重要一点是，上下文对象上既有`Asset`属性也有`Assets`属性。这些可以互换使用，但只有在以下条件适用时才会使用数组：
+ * `Parameters`属性中的`LoadType`是`LoadByType`或`LoadNamedWithSubAssets`，这是唯一可能返回多个资源的资源加载类型。
 
-Finally, if we take a look at the `Parameters` property of the context object, we will find the following definition:
+最后，如果我们查看上下文对象的`Parameters`属性，我们会找到以下定义：
 
 ```C#
 /// <summary>
-/// Class representing the original parameters of the load call.
+/// 表示加载调用的原始参数的类。
 /// </summary>
 public class AssetLoadingParameters
 {
     /// <summary>
-    /// Gets or sets the name of the asset being loaded. Will be null if loaded through 'LoadMainAsset' or 'LoadByType'.
+    /// 获取或设置正在加载的资源的名称。如果通过'LoadMainAsset'或'LoadByType'加载，将为null。
     /// </summary>
     public string Name { get; set; }
 
     /// <summary>
-    /// Gets or sets the type that passed to the asset load call.
+    /// 获取或设置传递给资源加载调用的类型。
     /// </summary>
     public Type Type { get; set; }
 
     /// <summary>
-    /// Gets the type of call that loaded this asset. If 'LoadByType' or 'LoadNamedWithSubAssets' is specified
-    /// multiple assets may be returned if subscribed as 'OneCallbackPerLoadCall'.
+    /// 获取加载此资源的调用类型。如果指定了'LoadByType'或'LoadNamedWithSubAssets'，
+    /// 如果订阅为'OneCallbackPerLoadCall'，可能会返回多个资源。
     /// </summary>
     public AssetLoadType LoadType { get; }
 }
 
 /// <summary>
-/// Enum representing the different ways an asset may be loaded.
+/// 表示资源可能被加载的不同方式的枚举。
 /// </summary>
 public enum AssetLoadType
 {
     /// <summary>
-    /// Indicates that this asset has been loaded as the 'mainAsset' in the AssetBundle API.
+    /// 指示此资源已在AssetBundle API中作为'mainAsset'加载。
     /// </summary>
     LoadMainAsset,
 
     /// <summary>
-    /// Indicates that this call is loading all assets of a specific type in an AssetBundle API.
+    /// 指示此调用正在AssetBundle API中加载特定类型的所有资源。
     /// </summary>
     LoadByType,
 
     /// <summary>
-    /// Indicates that this call is loading a specific named asset in the AssetBundle API.
+    /// 指示此调用正在AssetBundle API中加载特定命名的资源。
     /// </summary>
     LoadNamed,
 
@@ -1587,573 +1585,567 @@ public enum AssetLoadType
 }
 ```
 
-Another way to change the result of the asset load operation is to change the value of the `Name` and `Type` properties in the `Parameters` property. If you do this, you likely will not want to call the Complete method, as you will want the original method to still be called.
+更改资源加载操作结果的另一种方法是更改`Parameters`属性中的`Name`和`Type`属性的值。如果您这样做，您可能不希望调用Complete方法，因为您希望原始方法仍然被调用。
 
-An important additional way to subscribe to the prefix asset loading operations are through the method `RegisterAsyncAndSyncAssetLoadingHook( int priority, Action<IAssetLoadingContext> action )`. This method will handle both async and sync asset loading operations. The `IAssetLoadingContext` is an interface implemented by both the `AssetLoadingContext` and `AsyncAssetLoadingContext`.
+订阅前缀资源加载操作的另一个重要方法是通过方法`RegisterAsyncAndSyncAssetLoadingHook( int priority, Action<IAssetLoadingContext> action )`。此方法将处理异步和同步资源加载操作。`IAssetLoadingContext`是由`AssetLoadingContext`和`AsyncAssetLoadingContext`实现的接口。
 
-Do note, that if you want to use this method you must first call the method `EnableSyncOverAsyncAssetLoads()` to enable the hooks required for this to work.
+请注意，如果您想使用此方法，您必须首先调用方法`EnableSyncOverAsyncAssetLoads()`来启用此功能所需的钩子。
 
-#### Asset Loaded Methods
-The method `RegisterAssetLoadedHook( HookBehaviour behaviour, Action<AssetLoadedContext> action )` hooks into the `AssetBundle` API in the UnityEngine. Any time an asset is loaded through this API a callback is sent to these hooks.
+#### 资源已加载方法
+方法`RegisterAssetLoadedHook( HookBehaviour behaviour, Action<AssetLoadedContext> action )`钩入UnityEngine中的`AssetBundle` API。每当通过此API加载资源时，都会向这些钩子发送回调。
 
-This API is a postfix hook to the `AssetBundle` API, which means that it is first called once the original asset has already been loaded, but is still replacable.
+此API是`AssetBundle` API的后缀钩子，这意味着它在原始资源已经加载之后首次被调用，但仍可替换。
 
-The `AssetLoadedContext` class has the following definition:
+`AssetLoadedContext`类具有以下定义：
 
 ```C#
 /// <summary>
-/// The operation context surrounding the AssetLoaded hook.
+/// 围绕AssetLoaded钩子的操作上下文。
 /// </summary>
 public class AssetLoadedContext : IAssetOrResourceLoadedContext
 {
     /// <summary>
-    /// Gets a bool indicating if this resource has already been redirected before.
+    /// 获取一个布尔值，指示此资源是否已经被重定向过。
     /// </summary>
     public bool HasReferenceBeenRedirectedBefore( UnityEngine.Object asset );
 
     /// <summary>
-    /// Gets a file system path for the specfic asset that should be unique.
+    /// 获取特定资源的文件系统路径，该路径应该是唯一的。
     /// </summary>
     /// <param name="asset"></param>
     /// <returns></returns>
     public string GetUniqueFileSystemAssetPath( UnityEngine.Object asset );
 
     /// <summary>
-    /// Gets the original path the asset bundle was loaded with.
+    /// 获取加载资源包时使用的原始路径。
     /// </summary>
-    /// <returns>The unmodified, original path the asset bundle was loaded with.</returns>
+    /// <returns>加载资源包时使用的未修改的原始路径。</returns>
     public string GetAssetBundlePath();
 
     /// <summary>
-    /// Gets the normalized path to the asset bundle that is:
-    ///  * Relative to the current directory
-    ///  * Lower-casing
-    ///  * Uses '\' as separators.
+    /// 获取资源包的规范化路径，该路径：
+    ///  * 相对于当前目录
+    ///  * 小写
+    ///  * 使用'\'作为分隔符。
     /// </summary>
     /// <returns></returns>
     public string GetNormalizedAssetBundlePath();
 
     /// <summary>
-    /// Indicate your work is done and if any other hooks to this asset/resource load should be called.
+    /// 指示您的工作已完成，以及是否应该调用对此资源/资源加载的任何其他钩子。
     /// </summary>
-    /// <param name="skipRemainingPostfixes">Indicate if any other hooks should be skipped.</param>
+    /// <param name="skipRemainingPostfixes">指示是否应该跳过任何其他钩子。</param>
     public void Complete( bool skipRemainingPostfixes = true );
 
     /// <summary>
-    /// Disables recursive calls if you make an asset/asset bundle load call
-    /// from within your callback. If you want to prevent recursion this should
-    /// be called before you load the asset/asset bundle.
+    /// 如果您在回调中进行资源/资源包加载调用，则禁用递归调用。
+    /// 如果您想防止递归，应该在加载资源/资源包之前调用此方法。
     /// </summary>
     public void DisableRecursion();
 
     /// <summary>
-    /// Gets the original parameters the asset load call was called with.
+    /// 获取调用资源加载调用时使用的原始参数。
     /// </summary>
     public AssetLoadedParameters Parameters { get; }
 
     /// <summary>
-    /// Gets the AssetBundle associated with the loaded assets.
+    /// 获取与加载资源关联的AssetBundle。
     /// </summary>
     public AssetBundle Bundle { get; }
 
     /// <summary>
-    /// Gets the loaded assets. Override individual indices to change the asset reference that will be loaded.
+    /// 获取加载的资源。覆盖单个索引以更改将要加载的资源引用。
     ///
-    /// Consider using this if the load type is 'LoadByType' or 'LoadNamedWithSubAssets' and you subscribed with 'OneCallbackPerLoadCall'.
+    /// 如果加载类型是'LoadByType'或'LoadNamedWithSubAssets'，并且您订阅了'OneCallbackPerLoadCall'，请考虑使用此属性。
     /// </summary>
     public UnityEngine.Object[] Assets { get; set; }
 
     /// <summary>
-    /// Gets the loaded asset. This is simply equal to the first index of the Assets property, with some
-    /// additional null guards to prevent NullReferenceExceptions when using it.
+    /// 获取加载的资源。这简单地等于Assets属性的第一个索引，并有一些
+    /// 额外的null保护以防止在使用时出现NullReferenceExceptions。
     /// </summary>
     public UnityEngine.Object Asset { get; set; }
 }
 ```
 
-The HookBehaviour is an enum with the following definition:
+HookBehaviour是一个具有以下定义的枚举：
 
 ```C#
 /// <summary>
-/// Enum indicating how the resource redirector should treat the callback.
+/// 指示资源重定向器应如何处理回调的枚举。
 /// </summary>
 public enum HookBehaviour
 {
     /// <summary>
-    /// Specifies that exactly one callback should be received per call to asset/resource load method.
+    /// 指定每次调用资源/资源加载方法时应接收恰好一个回调。
     /// </summary>
     OneCallbackPerLoadCall = 1,
 
     /// <summary>
-    /// Specifies that exactly one callback should be received per loaded asset/resources. This means
-    /// that the 'Asset' property should be used over the 'Assets' property on the context object.
-    /// Do note that when using this option, if no resources are returned by a load call, no callbacks
-    /// will be received.
+    /// 指定每个加载的资源/资源应接收恰好一个回调。这意味着
+    /// 应该在上下文对象上使用'Asset'属性而不是'Assets'属性。
+    /// 请注意，使用此选项时，如果加载调用未返回任何资源，将不会收到任何回调。
     /// </summary>
     OneCallbackPerResourceLoaded = 2
 }
 ```
 
-An important points to make here, is that there is both an `Asset` and an `Assets` property on the context object. These can be used interchangably, but an array will only ever be used if the following two conditions apply:
- * You've subscribed with `OneCallbackPerLoadCall`.
- * The `LoadType` in the `Parameters` property is `LoadByType` or `LoadNamedWithSubAssets`, which are the only types of resource loading that may return multiple resources.
+这里需要注意的重要一点是，上下文对象上既有`Asset`属性也有`Assets`属性。这些可以互换使用，但只有在以下两个条件适用时才会使用数组：
+ * 您已订阅了`OneCallbackPerLoadCall`。
+ * `Parameters`属性中的`LoadType`是`LoadByType`或`LoadNamedWithSubAssets`，这是唯一可能返回多个资源的资源加载类型。
 
-In relation to this, it is worth mentioning that if a call to load assets returns 0 assets, you will not receive any callbacks if you subscribe through `OneCallbackPerResourceLoaded` where as if you subscribe through `OneCallbackPerLoadCall` you would still get your one callback.
+与此相关，值得一提的是，如果加载资源的调用返回0个资源，如果您通过`OneCallbackPerResourceLoaded`订阅，您将不会收到任何回调，而如果您通过`OneCallbackPerLoadCall`订阅，您仍然会收到一个回调。
 
-If you update or replace the asset being loaded remember to call to `Complete` method to indicate your intentions regarding:
- * Whether the remaining postfixes should be called.
+如果您更新或替换正在加载的资源，请记住调用`Complete`方法来指示您的意图：
+ * 是否应该调用剩余的后缀。
 
-In addition, if we take a look at the `Parameters` property of the context object, we will find the following definition:
+此外，如果我们查看上下文对象的`Parameters`属性，我们会找到以下定义：
 
 ```C#
 /// <summary>
-/// Class representing the original parameters of the load call.
+/// 表示加载调用的原始参数的类。
 /// </summary>
 public class AssetLoadedParameters
 {
     /// <summary>
-    /// Gets the name of the asset being loaded. Will be null if loaded through 'LoadMainAsset' or 'LoadByType'.
+    /// 获取正在加载的资源的名称。如果通过'LoadMainAsset'或'LoadByType'加载，将为null。
     /// </summary>
     public string Name { get; }
 
     /// <summary>
-    /// Gets the type that passed to the asset load call.
+    /// 获取传递给资源加载调用的类型。
     /// </summary>
     public Type Type { get; }
 
     /// <summary>
-    /// Gets the type of call that loaded this asset. If 'LoadByType' or 'LoadNamedWithSubAssets' is specified
-    /// multiple assets may be returned if subscribed as 'OneCallbackPerLoadCall'.
+    /// 获取加载此资源的调用类型。如果指定了'LoadByType'或'LoadNamedWithSubAssets'，
+    /// 如果订阅为'OneCallbackPerLoadCall'，可能会返回多个资源。
     /// </summary>
     public AssetLoadType LoadType { get; }
 }
 
 /// <summary>
-/// Enum representing the different ways an asset may be loaded.
+/// 表示资源可能被加载的不同方式的枚举。
 /// </summary>
 public enum AssetLoadType
 {
     /// <summary>
-    /// Indicates that this asset has been loaded as the 'mainAsset' in the AssetBundle API.
+    /// 指示此资源已在AssetBundle API中作为'mainAsset'加载。
     /// </summary>
     LoadMainAsset,
 
     /// <summary>
-    /// Indicates that this call is loading all assets of a specific type in an AssetBundle API.
+    /// 指示此调用正在AssetBundle API中加载特定类型的所有资源。
     /// </summary>
     LoadByType,
 
     /// <summary>
-    /// Indicates that this call is loading a specific named asset in the AssetBundle API.
+    /// 指示此调用正在AssetBundle API中加载特定命名的资源。
     /// </summary>
     LoadNamed,
 
     /// <summary>
-    /// Indicates that this call is loading a specific named asset and all those below it in the AssetBundle API.
+    /// 指示此调用正在AssetBundle API中加载特定命名的资源及其下方的所有资源。
     /// </summary>
     LoadNamedWithSubAssets
 }
 ```
 
-It is also worth mentioning that these hooks handles both synchronous and asynchronous loading of assets.
+还值得一提的是，这些钩子处理资源的同步和异步加载。
 
-Hooks subscribed through hook behaviour `OneCallbackPerLoadCall` will be called before hooks with the behaviour `OneCallbackPerResourceLoaded`.
+通过钩子行为`OneCallbackPerLoadCall`订阅的钩子将在具有行为`OneCallbackPerResourceLoaded`的钩子之前被调用。
 
-### Resource Load Methods
-The resource redirector comes only with postfix callbacks when loading an asset from the `Resources` API.
+### 资源加载方法
+资源重定向器在从`Resources` API加载资源时只提供后缀回调。
 
-The event callback chain looks like this `[Original Method] => [ResourceLoaded hooks]`. The `ResourceLoaded` event handles postfixes for both synchronous and asynchronous loading of assets.
+事件回调链看起来像这样：`[原始方法] => [ResourceLoaded钩子]`。`ResourceLoaded`事件处理同步和异步加载资源的后缀。
 
-#### Resource Loaded Methods
-The method `RegisterResourceLoadedHook( HookBehaviour behaviour, Action<ResourceLoadedContext> action )` hooks into the `Resources` API in the UnityEngine. Any time a resource is loaded through this API a callback is sent to these hooks.
+#### 资源已加载方法
+方法`RegisterResourceLoadedHook( HookBehaviour behaviour, Action<ResourceLoadedContext> action )`钩入UnityEngine中的`Resources` API。每当通过此API加载资源时，都会向这些钩子发送回调。
 
-This API is a postfix hook to the `Resources` API, which means that it is first called once the original asset has already been loaded, but is still replacable.
+此API是`Resources` API的后缀钩子，这意味着它在原始资源已经加载之后首次被调用，但仍可替换。
 
-The `ResourceLoadedContext` class has the following definition:
+`ResourceLoadedContext`类具有以下定义：
 
 ```C#
 /// <summary>
-/// The operation context surrounding the ResourceLoaded hook.
+/// 围绕ResourceLoaded钩子的操作上下文。
 /// </summary>
 public class ResourceLoadedContext : IAssetOrResourceLoadedContext
 {
     /// <summary>
-    /// Gets a bool indicating if this resource has already been redirected before.
+    /// 获取一个布尔值，指示此资源是否已经被重定向过。
     /// </summary>
     public bool HasReferenceBeenRedirectedBefore( UnityEngine.Object asset );
 
     /// <summary>
-    /// Gets a file system path for the specfic asset that should be unique.
+    /// 获取特定资源的文件系统路径，该路径应该是唯一的。
     /// </summary>
     /// <param name="asset"></param>
     /// <returns></returns>
     public string GetUniqueFileSystemAssetPath( UnityEngine.Object asset );
 
     /// <summary>
-    /// Indicate your work is done and if any other hooks to this asset/resource load should be called.
+    /// 指示您的工作已完成，以及是否应该调用对此资源/资源加载的任何其他钩子。
     /// </summary>
-    /// <param name="skipRemainingPostfixes">Indicate if any other hooks should be skipped.</param>
+    /// <param name="skipRemainingPostfixes">指示是否应该跳过任何其他钩子。</param>
     public void Complete( bool skipRemainingPostfixes = true );
 
     /// <summary>
-    /// Disables recursive calls if you make an asset/asset bundle load call
-    /// from within your callback. If you want to prevent recursion this should
-    /// be called before you load the asset/asset bundle.
+    /// 如果您在回调中进行资源/资源包加载调用，则禁用递归调用。
+    /// 如果您想防止递归，应该在加载资源/资源包之前调用此方法。
     /// </summary>
     public void DisableRecursion();
 
     /// <summary>
-    /// Gets the original parameters the asset load call was called with.
+    /// 获取调用资源加载调用时使用的原始参数。
     /// </summary>
     public ResourceLoadParameters Parameters { get; }
 
     /// <summary>
-    /// Gets the loaded assets. Override individual indices to change the asset reference that will be loaded.
+    /// 获取加载的资源。覆盖单个索引以更改将要加载的资源引用。
     ///
-    /// Consider using this if the load type is 'LoadByType' and you subscribed with 'OneCallbackPerLoadCall'.
+    /// 如果加载类型是'LoadByType'，并且您订阅了'OneCallbackPerLoadCall'，请考虑使用此属性。
     /// </summary>
     public UnityEngine.Object[] Assets { get; set; }
 
     /// <summary>
-    /// Gets the loaded asset. This is simply equal to the first index of the Assets property, with some
-    /// additional null guards to prevent NullReferenceExceptions when using it.
+    /// 获取加载的资源。这简单地等于Assets属性的第一个索引，并有一些
+    /// 额外的null保护以防止在使用时出现NullReferenceExceptions。
     /// </summary>
     public UnityEngine.Object Asset { get; set; }
 }
 ```
 
-The HookBehaviour is an enum with the following definition:
+HookBehaviour是一个具有以下定义的枚举：
 
 ```C#
 /// <summary>
-/// Enum indicating how the resource redirector should treat the callback.
+/// 指示资源重定向器应如何处理回调的枚举。
 /// </summary>
 public enum HookBehaviour
 {
     /// <summary>
-    /// Specifies that exactly one callback should be received per call to asset/resource load method.
+    /// 指定每次调用资源/资源加载方法时应接收恰好一个回调。
     /// </summary>
     OneCallbackPerLoadCall = 1,
 
     /// <summary>
-    /// Specifies that exactly one callback should be received per loaded asset/resources. This means
-    /// that the 'Asset' property should be used over the 'Assets' property on the context object.
-    /// Do note that when using this option, if no resources are returned by a load call, no callbacks
-    /// will be received.
+    /// 指定每个加载的资源/资源应接收恰好一个回调。这意味着
+    /// 应该在上下文对象上使用'Asset'属性而不是'Assets'属性。
+    /// 请注意，使用此选项时，如果加载调用未返回任何资源，将不会收到任何回调。
     /// </summary>
     OneCallbackPerResourceLoaded = 2
 }
 ```
 
-An important points to make here, is that there is both an `Asset` and an `Assets` property on the context object. These can be used interchangably, but an array will only ever be used if the following two conditions apply:
- * You've subscribed with `OneCallbackPerLoadCall`.
- * The `LoadType` in the `Parameters` property is `LoadByType`, which is the only type of resource loading that may return multiple resources.
+这里需要注意的重要一点是，上下文对象上既有`Asset`属性也有`Assets`属性。这些可以互换使用，但只有在以下两个条件适用时才会使用数组：
+ * 您已订阅了`OneCallbackPerLoadCall`。
+ * `Parameters`属性中的`LoadType`是`LoadByType`，这是唯一可能返回多个资源的资源加载类型。
 
-In relation to this, it is worth mentioning that if a call to load assets returns 0 assets, you will not receive any callbacks if you subscribe through `OneCallbackPerResourceLoaded` where as if you subscribe through `OneCallbackPerLoadCall` you would still get your one callback.
+与此相关，值得一提的是，如果加载资源的调用返回0个资源，如果您通过`OneCallbackPerResourceLoaded`订阅，您将不会收到任何回调，而如果您通过`OneCallbackPerLoadCall`订阅，您仍然会收到一个回调。
 
-If you update or replace the asset being loaded remember to call to `Complete` method to indicate your intentions regarding:
- * Whether the remaining postfixes should be called.
+如果您更新或替换正在加载的资源，请记住调用`Complete`方法来指示您的意图：
+ * 是否应该调用剩余的后缀。
 
-In addition, if we take a look at the `Parameters` property of the context object, we will find the following definition:
+此外，如果我们查看上下文对象的`Parameters`属性，我们会找到以下定义：
 
 ```C#
 /// <summary>
-/// Class representing the original parameters of the load call.
+/// 表示加载调用的原始参数的类。
 /// </summary>
 public class ResourceLoadedParameters
 {
     /// <summary>
-    /// Gets the name of the resource being loaded. Will not be the complete resource path if 'LoadByType' is used.
+    /// 获取正在加载的资源的名称。如果使用'LoadByType'，将不是完整的资源路径。
     /// </summary>
     public string Path { get; set; }
 
     /// <summary>
-    /// Gets the type that passed to the resource load call.
+    /// 获取传递给资源加载调用的类型。
     /// </summary>
     public Type Type { get; set; }
 
     /// <summary>
-    /// Gets the type of call that loaded this asset. If 'LoadByType' is specified
-    /// multiple assets may be returned if subscribed as 'OneCallbackPerLoadCall'.
+    /// 获取加载此资源的调用类型。如果指定了'LoadByType'，
+    /// 如果订阅为'OneCallbackPerLoadCall'，可能会返回多个资源。
     /// </summary>
     public ResourceLoadType LoadType { get; }
 }
 
 /// <summary>
-/// Enum representing the different ways a resource may be loaded.
+/// 表示资源可能被加载的不同方式的枚举。
 /// </summary>
 public enum ResourceLoadType
 {
     /// <summary>
-    /// Indicates that this call is loading all assets of a specific type (below a specific path) in the Resources API.
+    /// 指示此调用正在加载Resources API中特定类型的所有资源（在特定路径下）。
     /// </summary>
     LoadByType,
 
     /// <summary>
-    /// Indicates that this call is loading a single named asset in the Resources API.
+    /// 指示此调用正在加载Resources API中的单个命名资源。
     /// </summary>
     LoadNamed,
 
     /// <summary>
-    /// Indicates that this call is loading a single named built-in asset in the Resources API.
+    /// 指示此调用正在加载Resources API中的单个命名内置资源。
     /// </summary>
     LoadNamedBuiltIn
 }
 ```
 
-It is also worth mentioning that these hooks handles both synchronous and asynchronous loading of resources.
+还值得一提的是，这些钩子处理资源的同步和异步加载。
 
-Hooks subscribed through hook behaviour `OneCallbackPerLoadCall` will be called before hooks with the behaviour `OneCallbackPerResourceLoaded`.
+通过钩子行为`OneCallbackPerLoadCall`订阅的钩子将在具有行为`OneCallbackPerResourceLoaded`的钩子之前被调用。
 
-### AssetBundle Load Methods
-It is also possible to hook the loading of `AssetBundles` themselves. Only prefix hooks are supported when loading an asset bundle.
+### AssetBundle加载方法
+还可以钩取`AssetBundles`本身的加载。加载资源包时只支持前缀钩子。
 
-The event callback chain looks like this `[AssetBundleLoading/AsyncAssetBundleLoading hooks] => [Original Method]`.
+事件回调链看起来像这样：`[AssetBundleLoading/AsyncAssetBundleLoading钩子] => [原始方法]`。
 
-#### AssetBundle Synchrous Load Methods
-The method `RegisterAssetBundleLoadingHook( Action<AssetBundleLoadingContext> action )` is used to hook the synchronous AssetBundle load methods.
+#### AssetBundle同步加载方法
+方法`RegisterAssetBundleLoadingHook( Action<AssetBundleLoadingContext> action )`用于钩取同步AssetBundle加载方法。
 
-This API is a prefix to the `AssetBundle` API, which means that it is called before the AssetBundle is loaded.
+此API是`AssetBundle` API的前缀，这意味着它在加载AssetBundle之前被调用。
 
-The `AssetBundleLoadingContext` class has the following definition:
+`AssetBundleLoadingContext`类具有以下定义：
 
 ```C#
 /// <summary>
-/// The operation context surrounding the AssetBundleLoading hook (synchronous).
+/// 围绕AssetBundleLoading钩子的操作上下文（同步）。
 /// </summary>
 public class AssetBundleLoadingContext : IAssetBundleLoadingContext
 {
     /// <summary>
-    /// Gets a normalized path to the asset bundle that is:
-    ///  * Relative to the current directory
-    ///  * Lower-casing
-    ///  * Uses '\' as separators.
+    /// 获取资源包的规范化路径，该路径：
+    ///  * 相对于当前目录
+    ///  * 小写
+    ///  * 使用'\'作为分隔符。
     /// </summary>
     /// <returns></returns>
     public string GetNormalizedPath();
 
     /// <summary>
-    /// Indicate your work is done and if any other hooks to this asset bundle load should be called.
+    /// 指示您的工作已完成，以及是否应该调用对此资源包加载的任何其他钩子。
     /// </summary>
-    /// <param name="skipRemainingPrefixes">Indicate if the remaining prefixes should be skipped.</param>
-    /// <param name="skipOriginalCall">Indicate if the original call should be skipped. If you set the asset bundle, you likely want to set this to true.</param>
+    /// <param name="skipRemainingPrefixes">指示是否应该跳过剩余的前缀。</param>
+    /// <param name="skipOriginalCall">指示是否应该跳过原始调用。如果您设置了资源包，您可能希望将其设置为true。</param>
     public void Complete( bool skipRemainingPrefixes = true, bool? skipOriginalCall = true );
 
     /// <summary>
-    /// Disables recursive calls if you make an asset/asset bundle load call
-    /// from within your callback. If you want to prevent recursion this should
-    /// be called before you load the asset/asset bundle.
+    /// 如果您在回调中进行资源/资源包加载调用，则禁用递归调用。
+    /// 如果您想防止递归，应该在加载资源/资源包之前调用此方法。
     /// </summary>
     public void DisableRecursion();
 
     /// <summary>
-    /// Gets the parameters of the call.
+    /// 获取调用的参数。
     /// </summary>
     public AssetBundleLoadingParameters Parameters { get; }
 
     /// <summary>
-    /// Gets or sets the AssetBundle being loaded.
+    /// 获取或设置正在加载的AssetBundle。
     /// </summary>
     public AssetBundle Bundle { get; set; }
 }
 ```
 
-Because this is a prefix API, the `Bundle` property will be null when the method is called and it is up to you to set it to a different value if you can handle the specified path.
+因为这是一个前缀API，当调用方法时`Bundle`属性将为null，如果您可以处理指定的路径，则需要将其设置为不同的值。
 
-If you update the `Bundle` property, remember to call the `Complete` to indicate your intentions regarding:
- * Whether or not the remaining prefixes should be skipped.
- * Whether or not the original method should be skipped.
+如果您更新`Bundle`属性，请记住调用`Complete`来指示您的意图：
+ * 是否应该跳过剩余的前缀。
+ * 是否应该跳过原始方法。
 
-In addition, if we take a look at the `Parameters` property of the context object, we will find the following definition:
+此外，如果我们查看上下文对象的`Parameters`属性，我们会找到以下定义：
 
 ```C#
 /// <summary>
-/// Class representing the original parameters of the load call.
+/// 表示加载调用的原始参数的类。
 /// </summary>
 public class AssetBundleLoadingParameters
 {
     /// <summary>
-    /// Gets or sets the loaded path. Only relevant for 'LoadFromFile'.
+    /// 获取或设置加载的路径。仅对'LoadFromFile'相关。
     /// </summary>
     public string Path { get; }
 
     /// <summary>
-    /// Gets or sets the crc. Only relevant for 'LoadFromFile'.
+    /// 获取或设置crc。仅对'LoadFromFile'相关。
     /// </summary>
     public uint Crc { get; }
 
     /// <summary>
-    /// Gets or sets the offset. Only relevant for 'LoadFromFile'.
+    /// 获取或设置偏移量。仅对'LoadFromFile'相关。
     /// </summary>
     public ulong Offset { get; }
 
     /// <summary>
-    /// Gets the type of call that is loading this asset bundle.
+    /// 获取加载此资源包的调用类型。
     /// </summary>
     public AssetBundleLoadType LoadType { get; }
 }
 
 /// <summary>
-/// Enum representing the different ways an asset bundle may be loaded.
+/// 表示资源包可能被加载的不同方式的枚举。
 /// </summary>
 public enum AssetBundleLoadType
 {
     /// <summary>
-    /// Indicates that the asset bundle is being loaded through a call to 'LoadFromFile' or 'LoadFromFileAsync'.
+    /// 指示资源包正在通过调用'LoadFromFile'或'LoadFromFileAsync'加载。
     /// </summary>
     LoadFromFile,
 }
 ```
 
-As can be seen, the current implementation only hooks the LoadFromFile/LoadFromFileAsync ways of loading AssetBundles, but this may be expanded in the future.
+如您所见，当前实现仅钩取LoadFromFile/LoadFromFileAsync方式的AssetBundle加载，但这可能会在未来扩展。
 
-It may also be worth looking at the `GetNormalizedPath()` method instead of the `Path` property of the original call parameters. This is because the path passed to the method can take literally any form:
- * Absolute path
- * Relative path
- * Include a stray '..' in the middle of the path
+还值得查看`GetNormalizedPath()`方法，而不是原始调用参数的`Path`属性。这是因为传递给方法的路径可以采用任何形式：
+ * 绝对路径
+ * 相对路径
+ * 在路径中间包含无关的'..'
  
-Another way to change the result of the asset bundle load operation is to change the value of the `Path`, `Crc` and `Offset` properties in the `Parameters` property. If you do this, you likely will not want to call the Complete method, as you will want the original method to still be called.
+更改资源包加载操作结果的另一种方法是更改`Parameters`属性中的`Path`、`Crc`和`Offset`属性的值。如果您这样做，您可能不希望调用Complete方法，因为您希望原始方法仍然被调用。
 
-#### AssetBundle Asynchrounous Load Methods
-The method `RegisterAsyncAssetBundleLoadingHook( Action<AsyncAssetBundleLoadingContext> action )` is used to hook the asynchronous AssetBundle load methods.
+#### AssetBundle异步加载方法
+方法`RegisterAsyncAssetBundleLoadingHook( Action<AsyncAssetBundleLoadingContext> action )`用于钩取异步AssetBundle加载方法。
 
-This API is a prefix to the `AssetBundle` API, which means that it is called before the `AssetBundleCreateRequest` is created.
+此API是`AssetBundle` API的前缀，这意味着它在创建`AssetBundleCreateRequest`之前被调用。
 
-The `AsyncAssetBundleLoadingContext` class has the following definition:
+`AsyncAssetBundleLoadingContext`类具有以下定义：
 
 ```C#
 /// <summary>
-/// The operation context surrounding the AsyncAssetBundleLoading hook (asynchronous).
+/// 围绕AsyncAssetBundleLoading钩子的操作上下文（异步）。
 /// </summary>
 public class AsyncAssetBundleLoadingContext : IAssetBundleLoadingContext
 {
     /// <summary>
-    /// Gets a normalized path to the asset bundle that is:
-    ///  * Relative to the current directory
-    ///  * Lower-casing
-    ///  * Uses '\' as separators.
+    /// 获取资源包的规范化路径，该路径：
+    ///  * 相对于当前目录
+    ///  * 小写
+    ///  * 使用'\'作为分隔符。
     /// </summary>
     /// <returns></returns>
     public string GetNormalizedPath();
 
     /// <summary>
-    /// Indicate your work is done and if any other hooks to this asset bundle load should be called.
+    /// 指示您的工作已完成，以及是否应该调用对此资源包加载的任何其他钩子。
     /// </summary>
-    /// <param name="skipRemainingPrefixes">Indicate if the remaining prefixes should be skipped.</param>
-    /// <param name="skipOriginalCall">Indicate if the original call should be skipped. If you set the request, you likely want to set this to true.</param>
+    /// <param name="skipRemainingPrefixes">指示是否应该跳过剩余的前缀。</param>
+    /// <param name="skipOriginalCall">指示是否应该跳过原始调用。如果您设置了请求，您可能希望将其设置为true。</param>
     public void Complete( bool skipRemainingPrefixes = true, bool? skipOriginalCall = true );
 
     /// <summary>
-    /// Disables recursive calls if you make an asset/asset bundle load call
-    /// from within your callback. If you want to prevent recursion this should
-    /// be called before you load the asset/asset bundle.
+    /// 如果您在回调中进行资源/资源包加载调用，则禁用递归调用。
+    /// 如果您想防止递归，应该在加载资源/资源包之前调用此方法。
     /// </summary>
     public void DisableRecursion();
 
     /// <summary>
-    /// Gets the parameters of the call.
+    /// 获取调用的参数。
     /// </summary>
     public AssetBundleLoadingParameters Parameters { get; }
 
     /// <summary>
-    /// Gets or sets the AssetBundleCreateRequest being used to load the AssetBundle.
+    /// 获取或设置用于加载AssetBundle的AssetBundleCreateRequest。
     /// </summary>
     public AssetBundleCreateRequest Request { get; set; }
 
     /// <summary>
-    /// Gets or sets the AssetBundle being loaded.
+    /// 获取或设置正在加载的AssetBundle。
     /// </summary>
     public AssetBundle Bundle { get; set; }
 
     /// <summary>
-    /// Gets or sets how this load operation should be resolved.
-    /// Setting the Bundle/Request property will automatically update this value.
+    /// 获取或设置此加载操作应如何解析。
+    /// 设置Bundle/Request属性将自动更新此值。
     /// </summary>
     public AsyncAssetBundleLoadingResolve ResolveType { get; set; }
 }
 ```
 
-Because this is a prefix API, the `Request` property will be null when the method is called and it is up to you to set it to a different value if you can handle the specified path.
+因为这是一个前缀API，当调用方法时`Request`属性将为null，如果您可以处理指定的路径，则需要将其设置为不同的值。
 
-As you can see there is actually also a `Bundle` property available on the context object. Under normal circumstances, however, you cannot use the `Bundle` property on the the `AsyncAssetBundleLoadingContext`. In order to be able to use these, you must first call `ResourceRedirection.EnableSyncOverAsyncAssetLoads` once during your initialization logic. This will allow you to set the bundle directly so you don't have to go through the standard `AssetBundle` API to obtain a request object.
+如您所见，上下文对象上实际上还有一个`Bundle`属性可用。但是，在正常情况下，您不能在`AsyncAssetBundleLoadingContext`上使用`Bundle`属性。为了能够使用这些，您必须首先在初始化逻辑中调用一次`ResourceRedirection.EnableSyncOverAsyncAssetLoads`。这将允许您直接设置bundle，因此您不必通过标准的`AssetBundle` API来获取请求对象。
 
-It is, however, recommended that if you can that you set the `Request` property instead of the `Bundle` property as that will keep the operation asynchronous and not block the game while the asset is being loaded.
+但是，建议如果可以的话，您应该设置`Request`属性而不是`Bundle`属性，因为这将保持操作异步，并且在加载资源时不会阻塞游戏。
 
-If you update the `Request` property, remember to call the `Complete` to indicate your intentions regarding:
- * Whether or not the remaining prefixes should be skipped.
- * Whether or not the original method should be skipped.
+如果您更新`Request`属性，请记住调用`Complete`来指示您的意图：
+ * 是否应该跳过剩余的前缀。
+ * 是否应该跳过原始方法。
 
-In addition, if we take a look at the `Parameters` property of the context object, we will find the following definition:
+此外，如果我们查看上下文对象的`Parameters`属性，我们会找到以下定义：
 
 ```C#
 /// <summary>
-/// Class representing the original parameters of the load call.
+/// 表示加载调用的原始参数的类。
 /// </summary>
 public class AssetBundleLoadingParameters
 {
     /// <summary>
-    /// Gets the loaded path. Only relevant for 'LoadFromFile'.
+    /// 获取加载的路径。仅对'LoadFromFile'相关。
     /// </summary>
     public string Path { get; }
 
     /// <summary>
-    /// Gets the crc. Only relevant for 'LoadFromFile'.
+    /// 获取crc。仅对'LoadFromFile'相关。
     /// </summary>
     public uint Crc { get; }
 
     /// <summary>
-    /// Gets the offset. Only relevant for 'LoadFromFile'.
+    /// 获取偏移量。仅对'LoadFromFile'相关。
     /// </summary>
     public ulong Offset { get; }
 
     /// <summary>
-    /// Gets the type of call that is loading this asset bundle.
+    /// 获取加载此资源包的调用类型。
     /// </summary>
     public AssetBundleLoadType LoadType { get; }
 }
 
 /// <summary>
-/// Enum representing the different ways an asset bundle may be loaded.
+/// 表示资源包可能被加载的不同方式的枚举。
 /// </summary>
 public enum AssetBundleLoadType
 {
     /// <summary>
-    /// Indicates that the asset bundle is being loaded through a call to 'LoadFromFile' or 'LoadFromFileAsync'.
+    /// 指示资源包正在通过调用'LoadFromFile'或'LoadFromFileAsync'加载。
     /// </summary>
     LoadFromFile,
 }
 ```
 
-As can be see, the current implementation only hooks the LoadFromFile/LoadFromFileAsync ways of loading AssetBundles, but this may be expanded in the future.
+如您所见，当前实现仅钩取LoadFromFile/LoadFromFileAsync方式的AssetBundle加载，但这可能会在未来扩展。
 
-It may also be worth looking at the `GetNormalizedPath()` method instead of the `Path` property of the original call parameters. This is because the path passed to the method can take literally any form:
- * Absolute path
- * Relative path
- * Include a stray '..' in the middle of the path
+还值得查看`GetNormalizedPath()`方法，而不是原始调用参数的`Path`属性。这是因为传递给方法的路径可以采用任何形式：
+ * 绝对路径
+ * 相对路径
+ * 在路径中间包含无关的'..'
  
-Another way to change the result of the asset bundle load operation is to change the value of the `Path`, `Crc` and `Offset` properties in the `Parameters` property. If you do this, you likely will not want to call the Complete method, as you will want the original method to still be called.
+更改资源包加载操作结果的另一种方法是更改`Parameters`属性中的`Path`、`Crc`和`Offset`属性的值。如果您这样做，您可能不希望调用Complete方法，因为您希望原始方法仍然被调用。
 
-An important additional way to subscribe to the prefix asset bundle loading operations are through the method `RegisterAsyncAndSyncAssetBundleLoadingHook( int priority, Action<IAssetBundleLoadingContext> action )`. This method will handle both async and sync asset bundle loading operations. The `IAssetLoadingContext` is an interface implemented by both the `AssetBundleLoadingContext` and `AsyncAssetBundleLoadingContext`.
+订阅前缀资源包加载操作的另一个重要方法是通过方法`RegisterAsyncAndSyncAssetBundleLoadingHook( int priority, Action<IAssetBundleLoadingContext> action )`。此方法将处理异步和同步资源包加载操作。`IAssetLoadingContext`是由`AssetBundleLoadingContext`和`AsyncAssetBundleLoadingContext`实现的接口。
 
-Do note, that if you want to use this method you must first call the method `EnableSyncOverAsyncAssetLoads()` to enable the hooks required for this to work.
+请注意，如果您想使用此方法，您必须首先调用方法`EnableSyncOverAsyncAssetLoads()`来启用此功能所需的钩子。
 
-### About Recursion
-As you may have noticed, all of the context classes shown in the previous sections had a method called `DisableRecursion` and that there is a method called `DisableRecursionPermanently` directly on the `ResourceRedirection` class.
+### 关于递归
+如您可能已经注意到的，在前面部分显示的所有上下文类都有一个名为`DisableRecursion`的方法，并且在`ResourceRedirection`类上直接有一个名为`DisableRecursionPermanently`的方法。
 
-The purpose of these method is, as it name states, to disable recursion. That only leaves the question, when does recursion occur?
+这些方法的目的，正如其名称所表明的，是禁用递归。这只留下一个问题：什么时候发生递归？
 
-Recursion will happen anytime you try to load an asset/resource/asset bundle from within your callback using the `AssetBundle` or `Resources` API. Essentially, what it means is that all callbacks (except the one loading the resource) will get a chance to modify the resource that is being loaded by your callback.
+每当您尝试在回调中使用`AssetBundle`或`Resources` API从内部加载资源/资源/资源包时，都会发生递归。本质上，这意味着所有回调（除了加载资源的回调）都将有机会修改由您的回调加载的资源。
 
-This may not always be desirable, so if you call the method `DisableRecursion` *before* you load your resource, this recursive behaviour is disabled. In many other cases, this behaviour is very desirable because it means that it is less important to set the *correct* priority, whatever that may be.
+这可能并不总是可取的，因此如果您在加载资源之前调用`DisableRecursion`方法，这种递归行为将被禁用。在许多其他情况下，这种行为是非常可取的，因为它意味着设置*正确*优先级的重要性较低，无论这可能是什么。
 
-Recursion has an important side effect for other prefix/postfix callbacks, and that is that they will always be called if you make a recursive load call in your callback, even if you indicate through the `Complete` method that they should not be called. So if, in your scenario, it is important to avoid this, you must disable recursion.
+递归对其他前缀/后缀回调有一个重要的副作用，即如果您在回调中进行递归加载调用，它们将始终被调用，即使您通过`Complete`方法指示它们不应该被调用。因此，如果在您的场景中，避免这种情况很重要，您必须禁用递归。
 
-`DisableRecursionPermanently` disables recursion permanently for all subscribers to the ResourceRedirection API no matter who calls it. This is a game-wide setting that should be decided upon between plugin developers rather than by the hand of the individual.
+`DisableRecursionPermanently`为ResourceRedirection API的所有订阅者永久禁用递归，无论谁调用它。这是一个游戏范围的设置，应该由插件开发者之间决定，而不是由个人决定。
 
-These options exists only because it is not currently known whether or not having recursion enabled gives the best experience to plugin developers.
+这些选项存在只是因为目前尚不知道启用递归是否为插件开发者提供最佳体验。
 
-### Implementing an Asset Redirector
-Here's an example of how a resource redirection may be implemented to hook all `Texture2D` objects loaded through the `AssetBundle` API:
+### 实现资源重定向器
+以下是如何实现资源重定向来钩取通过`AssetBundle` API加载的所有`Texture2D`对象的示例：
 
 ```C#
 class TextureReplacementPlugin
@@ -2168,11 +2160,11 @@ class TextureReplacementPlugin
 
     public void AssetLoaded( AssetLoadedContext context )
     {
-        if( context.Asset is Texture2D texture2d ) // also acts as a null check
+        if( context.Asset is Texture2D texture2d ) // 也作为null检查
         {
-            // TODO: Modify, replace or dump the texture
+            // TODO: 修改、替换或转储纹理
                 
-            context.Asset = texture2d; // only need to update the reference if you created a new texture
+            context.Asset = texture2d; // 只有在您创建了新纹理时才需要更新引用
             context.Complete(
                 skipRemainingPostfixes: true );
         }
@@ -2180,8 +2172,8 @@ class TextureReplacementPlugin
 }
 ```
 
-### Implemting an AssetBundle Redirector
-Here's an example of how a resource redirection may be implemented to redirect non-existing resources to a seperate 'mods' directory.
+### 实现AssetBundle重定向器
+以下是如何实现资源重定向来将不存在的资源重定向到单独的'mods'目录的示例。
 
 ```C#
 class AssetBundleRedirectorPlugin
@@ -2201,13 +2193,13 @@ class AssetBundleRedirectorPlugin
     {
         if( !File.Exists( context.Parameters.Path ) )
         {
-            // the game is trying to load a path that does not exist, lets redirect to our own resources
+            // 游戏正试图加载一个不存在的路径，让我们重定向到我们自己的资源
 		    
-            // obtain different resource path
+            // 获取不同的资源路径
             var normalizedPath = context.GetNormalizedPath();
             var modFolderPath = Path.Combine( "mods", normalizedPath );
 		    
-            // if the path exists, let's load that instead
+            // 如果路径存在，让我们加载那个
             if( File.Exists( modFolderPath ) )
             {
                 var bundle = AssetBundle.LoadFromFile( modFolderPath );
@@ -2224,13 +2216,13 @@ class AssetBundleRedirectorPlugin
     {
         if( !File.Exists( context.Parameters.Path ) )
             {
-            // the game is trying to load a path that does not exist, lets redirect to our own resources
+            // 游戏正试图加载一个不存在的路径，让我们重定向到我们自己的资源
 		    
-            // obtain different resource path
+            // 获取不同的资源路径
             var normalizedPath = context.GetNormalizedPath();
             var modFolderPath = Path.Combine( "mods", normalizedPath );
 		    
-            // if the path exists, let's load that instead
+            // 如果路径存在，让我们加载那个
             if( File.Exists( modFolderPath ) )
             {
                 var request = AssetBundle.LoadFromFileAsync( modFolderPath );
@@ -2245,7 +2237,7 @@ class AssetBundleRedirectorPlugin
 }
 ```
 
-Here's a smart way to implement the same thing, by having a single method that hooks both the synchronous and asynchronous method at the same time:
+以下是同时实现同一功能的聪明方法，通过一个同时钩取同步和异步方法的方法：
 
 ```C#
 class AssetBundleRedirectorSyncOverAsyncPlugin
@@ -2263,13 +2255,13 @@ class AssetBundleRedirectorSyncOverAsyncPlugin
     {
         if( !File.Exists( context.Parameters.Path ) )
         {
-            // the game is trying to load a path that does not exist, lets redirect to our own resources
+            // 游戏正试图加载一个不存在的路径，让我们重定向到我们自己的资源
 	    
-            // obtain different resource path
+            // 获取不同的资源路径
             var normalizedPath = context.GetNormalizedPath();
             var modFolderPath = Path.Combine( "mods", normalizedPath );
 	    
-            // if the path exists, let's load that instead
+            // 如果路径存在，让我们加载那个
             if( File.Exists( modFolderPath ) )
             {
                 var bundle = AssetBundle.LoadFromFile( modFolderPath );
@@ -2302,13 +2294,13 @@ class SmartAssetBundleRedirectorSyncOverAsyncPlugin
     {
         if( !File.Exists( context.Parameters.Path ) )
         {
-            // the game is trying to load a path that does not exist, lets redirect to our own resources
+            // 游戏正试图加载一个不存在的路径，让我们重定向到我们自己的资源
 	    
-            // obtain different resource path
+            // 获取不同的资源路径
             var normalizedPath = context.GetNormalizedPath();
             var modFolderPath = Path.Combine( "mods", normalizedPath );
 	    
-            // if the path exists, let's load that instead
+            // 如果路径存在，让我们加载那个
             if( File.Exists( modFolderPath ) )
             {
                 if( context is AsyncAssetBundleLoadingContext asyncContext )
