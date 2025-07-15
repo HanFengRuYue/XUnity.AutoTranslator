@@ -2284,7 +2284,7 @@ class AssetBundleRedirectorSyncOverAsyncPlugin
 }
 ```
 
-While this is clean it causes all asset bundles to be loaded synchronously, potentially locking up the game causing FPS lag. Another approach that also handles that could look like this:
+虽然这很简洁，但会导致所有资源包都被同步加载，可能导致游戏锁定并造成FPS延迟。另一种同时处理这个问题的方法可能是这样的：
 
 ```C#
 class SmartAssetBundleRedirectorSyncOverAsyncPlugin
@@ -2331,21 +2331,20 @@ class SmartAssetBundleRedirectorSyncOverAsyncPlugin
 }
 ```
 
-Here's the redirector that is activated if the `EmulateAssetBundles` option is enabled in the plugin, which allows loading asset bundles from a different location than the game is requesting the bundle from:
+以下是插件中启用`EmulateAssetBundles`选项时激活的重定向器，它允许从与游戏请求资源包不同的位置加载资源包：
 
 ```C#
 /// <summary>
-/// Creates an asset bundle hook that attempts to load asset bundles in the emulation directory
-/// over the default asset bundles if they exist.
+/// 创建一个资源包钩子，如果存在的话，尝试在仿真目录中加载资源包而不是默认资源包。
 /// </summary>
-/// <param name="hookPriority">Priority of the hook.</param>
-/// <param name="emulationDirectory">The directory to look for the asset bundles in.</param>
+/// <param name="hookPriority">钩子的优先级。</param>
+/// <param name="emulationDirectory">要在其中查找资源包的目录。</param>
 public static void EnableEmulateAssetBundles( int hookPriority, string emulationDirectory )
 {
     RegisterAssetBundleLoadingHook( hookPriority, ctx => HandleAssetBundleEmulation( ctx, SetBundle ) );
     RegisterAsyncAssetBundleLoadingHook( hookPriority, ctx => HandleAssetBundleEmulation( ctx, SetRequest ) );
 		    
-    // define base callback
+    // 定义基础回调
     void HandleAssetBundleEmulation<T>( T context, Action<T, string> changeBundle )
         where T : IAssetBundleLoadingContext
     {
@@ -2364,13 +2363,13 @@ public static void EnableEmulateAssetBundles( int hookPriority, string emulation
         }
     }
 		    
-    // synchronous specific code
+    // 同步特定代码
     void SetBundle( AssetBundleLoadingContext context, string path )
     {
         context.Bundle = AssetBundle.LoadFromFile( path, context.Parameters.Crc, context.Parameters.Offset );
     }
 		    
-    // asynchronous specific code
+    // 异步特定代码
     void SetRequest( AsyncAssetBundleLoadingContext context, string path )
     {
         context.Request = AssetBundle.LoadFromFileAsync( path, context.Parameters.Crc, context.Parameters.Offset );
@@ -2378,20 +2377,19 @@ public static void EnableEmulateAssetBundles( int hookPriority, string emulation
 }
 ```
 
-Here's the redirector that is activated if the `RedirectMissingAssetBundles` option is enabled in the plugin, which essentially simply loads an empty asset bundle if an asset bundle cannot be found:
+以下是插件中启用`RedirectMissingAssetBundles`选项时激活的重定向器，它基本上只是在找不到资源包时加载一个空资源包：
 
 ```C#
 /// <summary>
-/// Creates an asset bundle hook that redirects asset bundles loads to an empty
-/// asset bundle if the file that is being loaded does not exist.
+/// 创建一个资源包钩子，如果正在加载的文件不存在，则将资源包加载重定向到空资源包。
 /// </summary>
-/// <param name="hookPriority">Priority of the hook.</param>
+/// <param name="hookPriority">钩子的优先级。</param>
 public static void EnableRedirectMissingAssetBundlesToEmptyAssetBundle( int hookPriority )
 {
     RegisterAssetBundleLoadingHook( hookPriority, ctx => HandleMissingBundle( ctx, SetBundle ) );
     RegisterAsyncAssetBundleLoadingHook( hookPriority, ctx => HandleMissingBundle( ctx, SetRequest ) );
 	    
-    // define base callback
+    // 定义基础回调
     void HandleMissingBundle<TContext>( TContext context, Action<TContext, byte[]> changeBundle )
         where TContext : IAssetBundleLoadingContext
     {
@@ -2411,14 +2409,14 @@ public static void EnableRedirectMissingAssetBundlesToEmptyAssetBundle( int hook
         }
     }
 	    
-    // synchronous specific code
+    // 同步特定代码
     void SetBundle( AssetBundleLoadingContext context, byte[] assetBundleData )
     {
         var bundle = AssetBundle.LoadFromMemory( assetBundleData );
         context.Bundle = bundle;
     }
 	    
-    // asynchronous specific code
+    // 异步特定代码
     void SetRequest( AsyncAssetBundleLoadingContext context, byte[] assetBundleData )
     {
         var request = AssetBundle.LoadFromMemoryAsync( assetBundleData );
@@ -2427,59 +2425,58 @@ public static void EnableRedirectMissingAssetBundlesToEmptyAssetBundle( int hook
 }
 ```
 
-### Implementing an Asset/Resource Handler (Auto Translator)
-This section shows how to implement an asset/resource redirector that respects the Auto Translator configuration.
+### 实现资源/资源处理器（自动翻译器）
+本节展示如何实现尊重自动翻译器配置的资源/资源重定向器。
 
-The `XUnity.AutoTranslator.Core.Plugin.dll` assembly has a base class that can be used to implement a plugin that dumps resources for the purposes of translation.
+`XUnity.AutoTranslator.Core.Plugin.dll`程序集有一个基类，可用于实现一个为翻译目的而转储资源的插件。
 
-This class simply hooks the postfix to the load of assets from the `AssetBundle` and the `Resources` API. Here's how the base class looks:
+这个类只是简单地钩取从`AssetBundle`和`Resources` API加载资源的后缀。以下是基类的样子：
 
 ```C#
 /// <summary>
-/// Base implementation of resource redirect handler that takes care of the plumming for a
-/// resource redirector that is interested in either updating or dumping redirected resources.
+/// 资源重定向处理器的基本实现，负责处理对更新或转储重定向资源感兴趣的资源重定向器的管道。
 /// </summary>
-/// <typeparam name="TAsset">The type of asset being redirected.</typeparam>
+/// <typeparam name="TAsset">正在重定向的资源类型。</typeparam>
 public abstract class AssetLoadedHandlerBaseV2<TAsset>
     where TAsset : UnityEngine.Object
 {
     /// <summary>
-    /// Method invoked when an asset should be updated or replaced.
+    /// 当资源应该被更新或替换时调用的方法。
     /// </summary>
-    /// <param name="calculatedModificationPath">This is the modification path calculated in the CalculateModificationFilePath method.</param>
-    /// <param name="asset">The asset to be updated or replaced.</param>
-    /// <param name="context">This is the context containing all relevant information for the resource redirection event.</param>
-    /// <returns>A bool indicating if the event should be considered handled.</returns>
+    /// <param name="calculatedModificationPath">这是在CalculateModificationFilePath方法中计算的修改路径。</param>
+    /// <param name="asset">要更新或替换的资源。</param>
+    /// <param name="context">这是包含资源重定向事件所有相关信息的上下文。</param>
+    /// <returns>指示事件是否应该被视为已处理的布尔值。</returns>
     protected abstract bool ReplaceOrUpdateAsset( string calculatedModificationPath, ref TAsset asset, IAssetOrResourceLoadedContext context );
 
     /// <summary>
-    /// Method invoked when an asset should be dumped.
+    /// 当资源应该被转储时调用的方法。
     /// </summary>
-    /// <param name="calculatedModificationPath">This is the modification path calculated in the CalculateModificationFilePath method.</param>
-    /// <param name="asset">The asset to be updated or replaced.</param>
-    /// <param name="context">This is the context containing all relevant information for the resource redirection event.</param>
-    /// <returns>A bool indicating if the event should be considered handled.</returns>
+    /// <param name="calculatedModificationPath">这是在CalculateModificationFilePath方法中计算的修改路径。</param>
+    /// <param name="asset">要更新或替换的资源。</param>
+    /// <param name="context">这是包含资源重定向事件所有相关信息的上下文。</param>
+    /// <returns>指示事件是否应该被视为已处理的布尔值。</returns>
     protected abstract bool DumpAsset( string calculatedModificationPath, TAsset asset, IAssetOrResourceLoadedContext context );
 
     /// <summary>
-    /// Method invoked when a new resource event is fired to calculate a unique path for the resource.
+    /// 当触发新的资源事件以计算资源的唯一路径时调用的方法。
     /// </summary>
-    /// <param name="asset">The asset to be updated or replaced.</param>
-    /// <param name="context">This is the context containing all relevant information for the resource redirection event.</param>
-    /// <returns>A string uniquely representing a path for the redirected resource.</returns>
+    /// <param name="asset">要更新或替换的资源。</param>
+    /// <param name="context">这是包含资源重定向事件所有相关信息的上下文。</param>
+    /// <returns>唯一表示重定向资源路径的字符串。</returns>
     protected abstract string CalculateModificationFilePath( TAsset asset, IAssetOrResourceLoadedContext context );
 
     /// <summary>
-    /// Method to be invoked to indicate if the asset should be handled or not.
+    /// 要调用以指示是否应该处理资源的方法。
     /// </summary>
-    /// <param name="asset">The asset to be updated or replaced.</param>
-    /// <param name="context">This is the context containing all relevant information for the resource redirection event.</param>
-    /// <returns>A bool indicating if the asset should be handled.</returns>
+    /// <param name="asset">要更新或替换的资源。</param>
+    /// <param name="context">这是包含资源重定向事件所有相关信息的上下文。</param>
+    /// <returns>指示是否应该处理资源的布尔值。</returns>
     protected abstract bool ShouldHandleAsset( TAsset asset, IAssetOrResourceLoadedContext context );
 }
 ```
 
-The Auto Translation includes one default implementation of this class for TextAssets. It looks like this:
+自动翻译包括此类的一个默认实现，用于TextAssets。它看起来像这样：
 
 ```C#
 internal class TextAssetLoadedHandler : AssetLoadedHandlerBaseV2<TextAsset>
@@ -2540,9 +2537,9 @@ internal class TextAssetLoadedHandler : AssetLoadedHandlerBaseV2<TextAsset>
 }
 ```
 
-Note that when accessing the resource file, we do not use the standard file API to obtain a stream to get the data in the file. Instead we use the RedirectedDirectory facade. This will also look in ZIP files and simply treat a ZIP file as a directory when making the lookup.
+请注意，当访问资源文件时，我们不使用标准文件API来获取流以获取文件中的数据。相反，我们使用RedirectedDirectory外观。这也会查找ZIP文件，并在进行查找时简单地将ZIP文件视为目录。
 
-Another examples of an implementation of this class would be for Koikatsu that enables replacing its custom resources:
+此类实现的另一个示例是为恋活（Koikatsu）启用替换其自定义资源：
 
 ```C#
 public class ScenarioDataResourceRedirector : AssetLoadedHandlerBaseV2<ScenarioData>
@@ -2627,9 +2624,9 @@ public class ScenarioDataResourceRedirector : AssetLoadedHandlerBaseV2<ScenarioD
 }
 ```
 
-Note that this implementation uses a `SimpleTextTranslationCache` to lookup translations. Using this class for translation lookups have the following benefits:
- * Whitespace doesn't have to match exactly.
- * It respects the `RedirectedResourceDetectionStrategy` configuration. If this is not respected the plugin may double translate certain texts.
- * When loading text translation files, it supports the same text format that is otherwise used by the plugin.
+请注意，此实现使用`SimpleTextTranslationCache`来查找翻译。使用此类进行翻译查找具有以下好处：
+ * 空白字符不必完全匹配。
+ * 它尊重`RedirectedResourceDetectionStrategy`配置。如果不尊重这一点，插件可能会对某些文本进行双重翻译。
+ * 加载文本翻译文件时，它支持插件使用的相同文本格式。
 
-Once you have implemented one of these classes, you just need to instantiate it and it will do it's magic. 
+一旦实现了其中一个类，您只需要实例化它，它就会发挥其魔力。 
